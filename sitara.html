@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>User Search</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background-color: #f4f6f9;
+            padding-top: 50px;
+        }
+        .container {
+            max-width: 800px;
+        }
+        .user-card {
+            margin-bottom: 15px;
+            transition: 0.3s;
+        }
+        .user-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .user-img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+        }
+        .loading {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center mb-4">User Search</h2>
+        
+        <!-- Search Box -->
+        <div class="input-group mb-3">
+            <input type="text" id="searchKey" class="form-control" placeholder="Enter name, email, etc..." />
+            <button class="btn btn-primary" onclick="searchUsers()">Search</button>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loading" class="text-center loading mb-3">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+
+        <!-- Results -->
+        <div id="results"></div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const backendBase = "https://test-hn4h.onrender.com"; // Your backend URL
+
+        async function searchUsers(retry = false) {
+            const key = document.getElementById('searchKey').value.trim();
+            const resultsDiv = document.getElementById('results');
+            const loadingDiv = document.getElementById('loading');
+
+            resultsDiv.innerHTML = '';
+            if (!key) {
+                resultsDiv.innerHTML = `<div class="alert alert-warning">Please enter a search key.</div>`;
+                return;
+            }
+
+            loadingDiv.style.display = 'block';
+
+            try {
+                const response = await fetch(`${backendBase}/search_users?key=${encodeURIComponent(key)}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    if ((response.status === 403 || response.status === 401) && data.error?.toLowerCase().includes("auth token")) {
+                        if (!retry) {
+                            const newToken = prompt("Auth-Token is missing or invalid. Please enter a valid token:");
+                            if (newToken) {
+                                const tokenResponse = await fetch(`${backendBase}/set_auth_token`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({ token: newToken })
+                                });
+
+                                const tokenResult = await tokenResponse.json();
+                                if (tokenResponse.ok) {
+                                    return searchUsers(true); // Retry once after setting token
+                                } else {
+                                    resultsDiv.innerHTML = `<div class="alert alert-danger">Failed to save token: ${tokenResult.error}</div>`;
+                                    return;
+                                }
+                            } else {
+                                resultsDiv.innerHTML = `<div class="alert alert-warning">Search cancelled. Auth-Token is required.</div>`;
+                                return;
+                            }
+                        } else {
+                            resultsDiv.innerHTML = `<div class="alert alert-danger">Authentication failed after retrying. Please check your token.</div>`;
+                            return;
+                        }
+                    }
+
+                    resultsDiv.innerHTML = `<div class="alert alert-danger">Error: ${data.error || "Unknown error occurred"}</div>`;
+                    return;
+                }
+
+                // Display users
+                if (data.length === 0) {
+                    resultsDiv.innerHTML = `<div class="alert alert-info">No users found.</div>`;
+                } else {
+                    resultsDiv.innerHTML = '';
+                    data.forEach(user => {
+                        resultsDiv.innerHTML += `
+                        <div class="card user-card shadow-sm p-3 bg-white rounded d-flex flex-row align-items-center">
+                            <img src="${user.photo || 'https://via.placeholder.com/60'}" class="rounded-circle user-img me-3" alt="User photo">
+                            <div>
+                                <h5 class="mb-1">${user.name || 'N/A'}</h5>
+                                <p class="mb-0"><small>Email: ${user.email || 'N/A'}</small></p>
+                                <p class="mb-0"><small>Registration ID: ${user.registrationId || 'N/A'}</small></p>
+                                <p class="mb-0"><small>User: ${user.userType || 'N/A'}</small></p>
+                                <p class="mb-0"><small>Phone: ${user.phone || 'N/A'}</small></p>
+                            </div>
+                        </div>`;
+                    });
+                }
+
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        // Trigger search on Enter key press
+        document.getElementById('searchKey').addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                searchUsers();
+            }
+        });
+    </script>
+</body>
+</html>
