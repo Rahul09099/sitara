@@ -34,7 +34,7 @@ function search() {
     const key = document.getElementById("searchKey").value.trim();
     if (!key) return alert("Enter search key");
 
-    fetch(`${API}/search_users?key=${encodeURIComponent(key)}`)
+    fetch(`${API}/search_users_full?key=${encodeURIComponent(key)}`)
         .then(res => res.json())
         .then(data => {
             if (data.error) {
