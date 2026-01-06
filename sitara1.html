@@ -21,6 +21,7 @@
 <script>
 const API = "https://sudig-km1b.onrender.com";
 
+/* ---------- COPY ---------- */
 function copyText(id) {
     const el = document.getElementById(id);
     el.select();
@@ -28,26 +29,39 @@ function copyText(id) {
     alert("Copied!");
 }
 
+/* ---------- SEARCH ---------- */
 function search() {
-    const key = document.getElementById("searchKey").value;
-    fetch(`${API}/search?key=${key}`)
+    const key = document.getElementById("searchKey").value.trim();
+    if (!key) return alert("Enter search key");
+
+    fetch(`${API}/search_users?key=${encodeURIComponent(key)}`)
         .then(res => res.json())
         .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
             document.getElementById("output").innerHTML = `
                 ${makeBox("Phones", "phones", data.phones, key)}
                 ${makeBox("Registration IDs", "regs", data.registration_ids, key)}
                 ${makeBox("Emails", "emails", data.emails, key)}
             `;
-        });
+        })
+        .catch(err => alert("API Error"));
 }
 
+/* ---------- BOX ---------- */
 function makeBox(title, id, list, key) {
     return `
     <div class="box">
         <h3>${title}</h3>
-        <textarea id="${id}">${list.join("\n")}</textarea><br>
+        <textarea id="${id}" readonly>${(list || []).join("\n")}</textarea><br>
         <button onclick="copyText('${id}')">📋 Copy</button>
-        <a href="${API}/download?key=${key}&type=${title.includes('Phone') ? 'phones' : title.includes('Registration') ? 'reg' : 'full'}">
+        <a href="${API}/download?key=${key}&type=${
+            title.includes("Phone") ? "phones" :
+            title.includes("Registration") ? "reg" : "full"
+        }">
             <button>⬇️ Download</button>
         </a>
     </div>
